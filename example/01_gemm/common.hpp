@@ -24,7 +24,7 @@
 
 struct ProblemSize final
 {
-    ck::index_t M = 3840;
+    ck::index_t M = 3328;
     ck::index_t N = 4096;
     ck::index_t K = 4096;
 
@@ -50,7 +50,7 @@ struct ExecutionConfig final
 {
     bool do_verification = true;
     int init_method      = 1;
-    bool time_kernel     = false;
+    bool time_kernel     = true;
 };
 
 template <ck::index_t... Is>
