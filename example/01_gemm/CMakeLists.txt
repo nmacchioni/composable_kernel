@@ -22,6 +22,10 @@ endif()
 add_custom_target(example_gemm_xdl)
 if(DTYPES MATCHES "fp16" OR NOT DEFINED DTYPES)
   add_example_executable(example_gemm_xdl_fp16 gemm_xdl_fp16.cpp)
+
+  set_source_files_properties(gemm_xdl_fp16.cpp PROPERTIES
+      COMPILE_OPTIONS ";-v;-save-temps;-Wno-gnu-line-marker;-mllvm;--print-after=nary-reassociate;")
+
   add_example_executable(example_gemm_xdl_wavelet_fp16 gemm_xdl_wavelet_fp16.cpp)
   add_dependencies(example_gemm_xdl example_gemm_xdl_fp16)
   add_dependencies(example_gemm_xdl example_gemm_xdl_wavelet_fp16)
