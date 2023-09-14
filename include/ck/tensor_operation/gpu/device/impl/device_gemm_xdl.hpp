@@ -149,14 +149,7 @@ struct DeviceGemmXdl : public DeviceGemm<ALayout,
                 ave_time = launch_and_time_kernel(
                     stream_config, kernel, dim3(gdx, gdy, gdz), dim3(BlockSize), 0, karg);
             }
-            else
-            {
-                const auto kernel = kernel_gemm_xdlops_v2r3<GridwiseGemm, false>;
-
-                ave_time = launch_and_time_kernel(
-                    stream_config, kernel, dim3(gdx, gdy, gdz), dim3(BlockSize), 0, karg);
-            }
-
+  
             return ave_time;
         }
 
