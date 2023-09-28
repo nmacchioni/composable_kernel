@@ -697,11 +697,18 @@ struct LocalBlockToCTileMap
 {
     using underlying_type = UnderlyingBlockToCTileMap;
 
-    __host__ __device__ LocalBlockToCTileMap(UnderlyingBlockToCTileMap block_to_ctile_map,
+    __host__ __device__ LocalBlockToCTileMap(const UnderlyingBlockToCTileMap& block_to_ctile_map,
                                              index_t local_id)
         : block_to_ctile_map_{block_to_ctile_map}, local_block_id_{local_id}
     {
     }
+
+    __host__ __device__ LocalBlockToCTileMap(const UnderlyingBlockToCTileMap& block_to_ctile_map)
+        : LocalBlockToCTileMap(block_to_ctile_map, 0)
+    {
+    }
+
+    __host__ __device__ void SetLocalBlockId(index_t local_id) { local_block_id_ = local_id; }
 
     __host__ __device__ constexpr auto CalculateBottomIndex() const
     {
@@ -727,7 +734,7 @@ struct LocalBlockToCTileMap
         return block_to_ctile_map_.CalculateGridSize(c_grid_desc_m_n);
     }
 
-    UnderlyingBlockToCTileMap block_to_ctile_map_;
+    const UnderlyingBlockToCTileMap& block_to_ctile_map_;
     index_t local_block_id_;
 };
 
@@ -1131,6 +1138,129 @@ struct BlockToCTileMap_GemmStreamK
             return get_total_acc_buffers() - (block_idx_little_reverse + current_intersec);
         }
     }
+};
+
+/**
+ * @brief      Linear workgroup mapping along fastest (reduced K) dim.
+ *
+ * @tparam     MPerBlock  Number of M rows per output data tile.
+ * @tparam     NPerBlock  Number of N columns per output data tile.
+ */
+template <index_t MPerBlock, index_t NPerBlock>
+struct BlockToCTileMap_LinearKSplit
+{
+    static constexpr auto I0 = Number<0>{};
+    static constexpr auto I1 = Number<1>{};
+
+    __host__ __device__ BlockToCTileMap_LinearKSplit() = default;
+
+    __host__ __device__ BlockToCTileMap_LinearKSplit(const BlockToCTileMap_LinearKSplit&) = default;
+    __host__ __device__ BlockToCTileMap_LinearKSplit(BlockToCTileMap_LinearKSplit&&)      = default;
+
+    __host__ __device__ BlockToCTileMap_LinearKSplit&
+    operator=(const BlockToCTileMap_LinearKSplit&) = default;
+
+    __host__ __device__ BlockToCTileMap_LinearKSplit&
+    operator=(BlockToCTileMap_LinearKSplit&&) = default;
+
+    __host__ __device__ BlockToCTileMap_LinearKSplit(index_t M, index_t N, index_t KSplit)
+        : M_{M}, N_{N}, KSplit_{KSplit}
+    {
+    }
+
+    template <typename CGridDesc_M_N>
+    __host__ __device__ BlockToCTileMap_LinearKSplit(const CGridDesc_M_N& c_grid_desc_m_n,
+                                                     index_t KSplit = 1)
+        : BlockToCTileMap_LinearKSplit(
+              c_grid_desc_m_n.GetLength(I0), c_grid_desc_m_n.GetLength(I1), KSplit)
+    {
+    }
+
+    __host__ constexpr index_t CalculateGridSize(index_t M, index_t N)
+    {
+        const auto M0 = math::integer_divide_ceil(M, MPerBlock);
+        const auto N0 = math::integer_divide_ceil(N, NPerBlock);
+
+        return M0 * N0 * KSplit_;
+    }
+
+    template <typename CGridDesc_M_N>
+    __host__ constexpr index_t CalculateGridSize(const CGridDesc_M_N& c_grid_desc_m_n)
+    {
+        return CalculateGridSize(c_grid_desc_m_n.GetLength(I0), c_grid_desc_m_n.GetLength(I1));
+    }
+
+    template <typename CGridDesc_M_N>
+    __host__ bool CheckValidity(const CGridDesc_M_N& /* c_grid_desc_m_n */) const
+    {
+        return true;
+    }
+
+    __host__ constexpr auto CalculateBottomIndex(index_t block_1d_id)
+    {
+        const auto N0 = math::integer_divide_ceil(N_, NPerBlock);
+
+        M0_idx_     = block_1d_id / (N0 * KSplit_);
+        block_1d_id = block_1d_id % (N0 * KSplit_);
+
+        N0_idx_ = block_1d_id / KSplit_;
+        K0_idx_ = block_1d_id % KSplit_;
+        return make_tuple(M0_idx_, N0_idx_, K0_idx_);
+    }
+
+    __device__ constexpr auto CalculateBottomIndex(index_t block_1d_id)
+    {
+        const auto N0 = math::integer_divide_ceil(N_, NPerBlock);
+
+        M0_idx_     = __builtin_amdgcn_readfirstlane(block_1d_id / (N0 * KSplit_));
+        block_1d_id = block_1d_id % (N0 * KSplit_);
+
+        N0_idx_ = __builtin_amdgcn_readfirstlane(block_1d_id / KSplit_);
+        K0_idx_ = __builtin_amdgcn_readfirstlane(block_1d_id % KSplit_);
+        return make_tuple(M0_idx_, N0_idx_, K0_idx_);
+    }
+
+    __host__ __device__ auto GetBottomIndex() const
+    {
+        return make_tuple(M0_idx_, N0_idx_, K0_idx_);
+    }
+
+    template <typename CTileIdx, typename CTileDim>
+    __host__ __device__ bool ValidCTileIndex(const CTileIdx& /* c_tile_idx */,
+                                             const CTileDim& /* c_tile_dim */) const
+    {
+        return true; // always valid provided that user gets grid size from CalculateGridSize()
+    }
+
+    __host__ __device__ bool GetNextKTileIdx()
+    {
+        K0_idx_++;
+        return K0_idx_ < KSplit_;
+    }
+
+    ///
+    /// @brief      Determines whether the current workgroup processed first tile in K dimension
+    ///
+    /// @param[in]  tiles_per_block  The number of tiles per block to process per workgroup.
+    ///
+    /// @return     True if the current workgroup processed first tile. False otherwise.
+    ///
+    __host__ __device__ bool IsFirstKSplitBlock(index_t tiles_per_block) const
+    {
+        return (K0_idx_ - tiles_per_block) <= 0;
+    }
+
+    __host__ __device__ index_t GetTileMIdx() const { return M0_idx_; }
+    __host__ __device__ index_t GetTileNIdx() const { return N0_idx_; }
+    __host__ __device__ index_t GetTileKIdx() const { return K0_idx_; }
+
+    private:
+    index_t M_;
+    index_t N_;
+    index_t KSplit_;
+    index_t M0_idx_;
+    index_t N0_idx_;
+    index_t K0_idx_;
 };
 
 } // namespace ck
