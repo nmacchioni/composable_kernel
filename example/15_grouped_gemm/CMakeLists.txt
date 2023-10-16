@@ -35,6 +35,11 @@ add_example_executable(example_grouped_gemm_xdl_fixed_nk_fp8 grouped_gemm_xdl_fi
 if(result EQUAL 0)
   add_dependencies(example_grouped_gemm_xdl example_grouped_gemm_xdl_fixed_nk_fp8)
 endif()
+add_example_executable(example_grouped_gemm_multiple_d_splitk_xdl_fp16 grouped_gemm_multiple_d_splitk_xdl_fp16.cpp)
+if(result EQUAL 0)
+  add_dependencies(example_grouped_gemm_xdl example_grouped_gemm_multiple_d_splitk_xdl_fp16)
+endif()
+
 
 if(USE_BITINT_EXTENSION_INT4)
   add_example_executable(example_grouped_gemm_xdl_int4 grouped_gemm_xdl_int4.cpp)
