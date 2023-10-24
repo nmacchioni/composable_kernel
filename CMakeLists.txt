@@ -145,88 +145,91 @@ if(GPU_TARGETS)
 else()
     message("Building CK for the following targets: ${AMDGPU_TARGETS}")
 endif()
-find_package(hip)
-# No assumption that HIP kernels are launched with uniform block size for backward compatibility
-# SWDEV-413293 and https://reviews.llvm.org/D155213
-math(EXPR hip_VERSION_FLAT "(${hip_VERSION_MAJOR} * 1000 + ${hip_VERSION_MINOR}) * 100000 + ${hip_VERSION_PATCH}")
-message("hip_version_flat=${hip_VERSION_FLAT}")
-if(NOT WIN32 AND ${hip_VERSION_FLAT} GREATER 500723302)
-   message("Adding the fno-offload-uniform-block compiler flag")
-   add_compile_options(-fno-offload-uniform-block)
-endif()
-
-option(USE_BITINT_EXTENSION_INT4, "Whether to enable clang's BitInt extension to provide int4 data type." OFF)
-option(USE_OPT_NAVI3X, "Whether to enable LDS cumode and Wavefront32 mode for NAVI3X silicons." OFF)
-
-if(USE_BITINT_EXTENSION_INT4)
-    add_compile_definitions(CK_EXPERIMENTAL_BIT_INT_EXTENSION_INT4)
-    add_compile_options(-Wno-bit-int-extension)
-    message("CK compiled with USE_BITINT_EXTENSION_INT4 set to ${USE_BITINT_EXTENSION_INT4}")
-endif()
-
-if(USE_OPT_NAVI3X)
-    add_compile_options(-mcumode)
-    add_compile_options(-mno-wavefrontsize64)
-    message("CK compiled with USE_OPT_NAVI3X set to ${USE_OPT_NAVI3X}")
-endif()
-
-## Threads
-if(NOT WIN32)
-    set(THREADS_PREFER_PTHREAD_FLAG ON)
-endif()
-find_package(Threads REQUIRED)
-link_libraries(Threads::Threads)
-
 ## C++
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 message("CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
 
-## OpenMP
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-	# workaround issue hipcc in rocm3.5 cannot find openmp
-	set(OpenMP_CXX "${CMAKE_CXX_COMPILER}")
-	set(OpenMP_CXX_FLAGS "-fopenmp=libomp -Wno-unused-command-line-argument")
-	set(OpenMP_CXX_LIB_NAMES "libomp" "libgomp" "libiomp5")
-	set(OpenMP_libomp_LIBRARY ${OpenMP_CXX_LIB_NAMES})
-	set(OpenMP_libgomp_LIBRARY ${OpenMP_CXX_LIB_NAMES})
-	set(OpenMP_libiomp5_LIBRARY ${OpenMP_CXX_LIB_NAMES})
-else()
-	find_package(OpenMP REQUIRED)
-endif()
+option(CK_BUILD_JIT_LIB "Only build the CK JIT Helper Library" OFF)
+if (NOT CK_BUILD_JIT_LIB)
+    find_package(hip)
+    # No assumption that HIP kernels are launched with uniform block size for backward compatibility
+    # SWDEV-413293 and https://reviews.llvm.org/D155213
+    math(EXPR hip_VERSION_FLAT "(${hip_VERSION_MAJOR} * 1000 + ${hip_VERSION_MINOR}) * 100000 + ${hip_VERSION_PATCH}")
+    message("hip_version_flat=${hip_VERSION_FLAT}")
+    if(NOT WIN32 AND ${hip_VERSION_FLAT} GREATER 500723302)
+       message("Adding the fno-offload-uniform-block compiler flag")
+       add_compile_options(-fno-offload-uniform-block)
+    endif()
 
-message("OpenMP_CXX_LIB_NAMES: ${OpenMP_CXX_LIB_NAMES}")
-message("OpenMP_gomp_LIBRARY: ${OpenMP_gomp_LIBRARY}")
-message("OpenMP_pthread_LIBRARY: ${OpenMP_pthread_LIBRARY}")
-message("OpenMP_CXX_FLAGS: ${OpenMP_CXX_FLAGS}")
+    option(USE_BITINT_EXTENSION_INT4, "Whether to enable clang's BitInt extension to provide int4 data type." OFF)
+    option(USE_OPT_NAVI3X, "Whether to enable LDS cumode and Wavefront32 mode for NAVI3X silicons." OFF)
 
-link_libraries(${OpenMP_gomp_LIBRARY})
-link_libraries(${OpenMP_pthread_LIBRARY})
+    if(USE_BITINT_EXTENSION_INT4)
+        add_compile_definitions(CK_EXPERIMENTAL_BIT_INT_EXTENSION_INT4)
+        add_compile_options(-Wno-bit-int-extension)
+        message("CK compiled with USE_BITINT_EXTENSION_INT4 set to ${USE_BITINT_EXTENSION_INT4}")
+    endif()
 
-## HIP
-find_package(HIP REQUIRED)
-# Override HIP version in config.h, if necessary.
-# The variables set by find_package() can't be overwritten,
-# therefore let's use intermediate variables.
-set(CK_HIP_VERSION_MAJOR "${HIP_VERSION_MAJOR}")
-set(CK_HIP_VERSION_MINOR "${HIP_VERSION_MINOR}")
-set(CK_HIP_VERSION_PATCH "${HIP_VERSION_PATCH}")
-if( DEFINED CK_OVERRIDE_HIP_VERSION_MAJOR )
-    set(CK_HIP_VERSION_MAJOR "${CK_OVERRIDE_HIP_VERSION_MAJOR}")
-    message(STATUS "CK_HIP_VERSION_MAJOR overriden with ${CK_OVERRIDE_HIP_VERSION_MAJOR}")
+    if(USE_OPT_NAVI3X)
+        add_compile_options(-mcumode)
+        add_compile_options(-mno-wavefrontsize64)
+        message("CK compiled with USE_OPT_NAVI3X set to ${USE_OPT_NAVI3X}")
+    endif()
+
+    ## Threads
+    if(NOT WIN32)
+        set(THREADS_PREFER_PTHREAD_FLAG ON)
+    endif()
+    find_package(Threads REQUIRED)
+    link_libraries(Threads::Threads)
+
+    ## OpenMP
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+	    # workaround issue hipcc in rocm3.5 cannot find openmp
+    	set(OpenMP_CXX "${CMAKE_CXX_COMPILER}")
+    	set(OpenMP_CXX_FLAGS "-fopenmp=libomp -Wno-unused-command-line-argument")
+    	set(OpenMP_CXX_LIB_NAMES "libomp" "libgomp" "libiomp5")
+    	set(OpenMP_libomp_LIBRARY ${OpenMP_CXX_LIB_NAMES})
+    	set(OpenMP_libgomp_LIBRARY ${OpenMP_CXX_LIB_NAMES})
+    	set(OpenMP_libiomp5_LIBRARY ${OpenMP_CXX_LIB_NAMES})
+    else()
+	    find_package(OpenMP REQUIRED)
+    endif()
+
+    message("OpenMP_CXX_LIB_NAMES: ${OpenMP_CXX_LIB_NAMES}")
+    message("OpenMP_gomp_LIBRARY: ${OpenMP_gomp_LIBRARY}")
+    message("OpenMP_pthread_LIBRARY: ${OpenMP_pthread_LIBRARY}")
+    message("OpenMP_CXX_FLAGS: ${OpenMP_CXX_FLAGS}")
+
+    link_libraries(${OpenMP_gomp_LIBRARY})
+    link_libraries(${OpenMP_pthread_LIBRARY})
+
+    ## HIP
+    find_package(HIP REQUIRED)
+    # Override HIP version in config.h, if necessary.
+    # The variables set by find_package() can't be overwritten,
+    # therefore let's use intermediate variables.
+    set(CK_HIP_VERSION_MAJOR "${HIP_VERSION_MAJOR}")
+    set(CK_HIP_VERSION_MINOR "${HIP_VERSION_MINOR}")
+    set(CK_HIP_VERSION_PATCH "${HIP_VERSION_PATCH}")
+    if( DEFINED CK_OVERRIDE_HIP_VERSION_MAJOR )
+        set(CK_HIP_VERSION_MAJOR "${CK_OVERRIDE_HIP_VERSION_MAJOR}")
+        message(STATUS "CK_HIP_VERSION_MAJOR overriden with ${CK_OVERRIDE_HIP_VERSION_MAJOR}")
+    endif()
+    if( DEFINED CK_OVERRIDE_HIP_VERSION_MINOR )
+        set(CK_HIP_VERSION_MINOR "${CK_OVERRIDE_HIP_VERSION_MINOR}")
+        message(STATUS "CK_HIP_VERSION_MINOR overriden with ${CK_OVERRIDE_HIP_VERSION_MINOR}")
+    endif()
+    if( DEFINED CK_OVERRIDE_HIP_VERSION_PATCH )
+        set(CK_HIP_VERSION_PATCH "${CK_OVERRIDE_HIP_VERSION_PATCH}")
+        message(STATUS "CK_HIP_VERSION_PATCH overriden with ${CK_OVERRIDE_HIP_VERSION_PATCH}")
+    endif()
+    message(STATUS "Build with HIP ${HIP_VERSION}")
+    link_libraries(hip::device)
+    add_compile_definitions(__HIP_PLATFORM_HCC__=1)
 endif()
-if( DEFINED CK_OVERRIDE_HIP_VERSION_MINOR )
-    set(CK_HIP_VERSION_MINOR "${CK_OVERRIDE_HIP_VERSION_MINOR}")
-    message(STATUS "CK_HIP_VERSION_MINOR overriden with ${CK_OVERRIDE_HIP_VERSION_MINOR}")
-endif()
-if( DEFINED CK_OVERRIDE_HIP_VERSION_PATCH )
-    set(CK_HIP_VERSION_PATCH "${CK_OVERRIDE_HIP_VERSION_PATCH}")
-    message(STATUS "CK_HIP_VERSION_PATCH overriden with ${CK_OVERRIDE_HIP_VERSION_PATCH}")
-endif()
-message(STATUS "Build with HIP ${HIP_VERSION}")
-link_libraries(hip::device)
-add_compile_definitions(__HIP_PLATFORM_HCC__=1)
 
 ## tidy
 include(EnableCompilerWarnings)
@@ -381,89 +384,98 @@ include_directories(BEFORE
     ${HIP_INCLUDE_DIRS}
 )
 
-SET(BUILD_DEV ON CACHE BOOL "BUILD_DEV")
-
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -C ${CMAKE_CFG_INTDIR})
 
-file(GLOB_RECURSE INSTANCE_FILES "${PROJECT_SOURCE_DIR}/*/device_*_instance.cpp")
-file(GLOB dir_list RELATIVE ${PROJECT_SOURCE_DIR}/library/src/tensor_operation_instance/gpu ${PROJECT_SOURCE_DIR}/library/src/tensor_operation_instance/gpu/*)
-set(CK_DEVICE_INSTANCES)
-FOREACH(subdir_path ${dir_list})
-set(target_dir)
-IF(IS_DIRECTORY "${PROJECT_SOURCE_DIR}/library/src/tensor_operation_instance/gpu/${subdir_path}")
-    set(cmake_instance)
-    file(READ "${PROJECT_SOURCE_DIR}/library/src/tensor_operation_instance/gpu/${subdir_path}/CMakeLists.txt" cmake_instance)
-    set(add_inst 0)
-    if(("${cmake_instance}" MATCHES "fp8" OR "${cmake_instance}" MATCHES "_f8") AND DTYPES MATCHES "fp8")
-        #message("fp8 instance found!")
-        set(add_inst 1)
-    endif()
-    if(("${cmake_instance}" MATCHES "bf8" OR "${cmake_instance}" MATCHES "_b8") AND DTYPES MATCHES "bf8")
-        #message("bf8 instance found!")
-        set(add_inst 1)
-    endif()
-    if(("${cmake_instance}" MATCHES "fp16" OR "${cmake_instance}" MATCHES "_f16") AND DTYPES MATCHES "fp16")
-        #message("fp16 instance found!")
-        set(add_inst 1)
-    endif()
-    if(("${cmake_instance}" MATCHES "fp32" OR "${cmake_instance}" MATCHES "_f32") AND DTYPES MATCHES "fp32")
-        #message("fp32 instance found!")
-        set(add_inst 1)
-    endif()
-    if(("${cmake_instance}" MATCHES "fp64" OR "${cmake_instance}" MATCHES "_f64") AND DTYPES MATCHES "fp64")
-        #message("fp64 instance found!")
-        set(add_inst 1)
-    endif()
-    if(("${cmake_instance}" MATCHES "bf16" OR "${cmake_instance}" MATCHES "_b16") AND DTYPES MATCHES "bf16")
-        #message("bf16 instance found!")
-        set(add_inst 1)
-    endif()
-    if(("${cmake_instance}" MATCHES "int8" OR "${cmake_instance}" MATCHES "_i8") AND DTYPES MATCHES "int8")
-        #message("int8 instance found!")
-        set(add_inst 1)
-    endif()
-    if(NOT "${cmake_instance}" MATCHES "DTYPES")
-        #message("instance should be built for all types!")
-        set(add_inst 1)
-    endif()
-    if(add_inst EQUAL 1 OR NOT DEFINED DTYPES)
-        list(APPEND CK_DEVICE_INSTANCES device_${subdir_path}_instance)
-    endif()
-ENDIF()
-ENDFOREACH()
+if (NOT CK_BUILD_JIT_LIB)
+    SET(BUILD_DEV ON CACHE BOOL "BUILD_DEV")
 
-add_custom_target(instances DEPENDS utility;${CK_DEVICE_INSTANCES}  SOURCES ${INSTANCE_FILES})
-add_subdirectory(library)
+    file(GLOB_RECURSE INSTANCE_FILES "${PROJECT_SOURCE_DIR}/*/device_*_instance.cpp")
+    file(GLOB dir_list RELATIVE ${PROJECT_SOURCE_DIR}/library/src/tensor_operation_instance/gpu ${PROJECT_SOURCE_DIR}/library/src/tensor_operation_instance/gpu/*)
+    set(CK_DEVICE_INSTANCES)
+    FOREACH(subdir_path ${dir_list})
+    set(target_dir)
+    IF(IS_DIRECTORY "${PROJECT_SOURCE_DIR}/library/src/tensor_operation_instance/gpu/${subdir_path}")
+        set(cmake_instance)
+        file(READ "${PROJECT_SOURCE_DIR}/library/src/tensor_operation_instance/gpu/${subdir_path}/CMakeLists.txt" cmake_instance)
+        set(add_inst 0)
+        if(("${cmake_instance}" MATCHES "fp8" OR "${cmake_instance}" MATCHES "_f8") AND DTYPES MATCHES "fp8")
+            #message("fp8 instance found!")
+            set(add_inst 1)
+        endif()
+        if(("${cmake_instance}" MATCHES "bf8" OR "${cmake_instance}" MATCHES "_b8") AND DTYPES MATCHES "bf8")
+            #message("bf8 instance found!")
+            set(add_inst 1)
+        endif()
+        if(("${cmake_instance}" MATCHES "fp16" OR "${cmake_instance}" MATCHES "_f16") AND DTYPES MATCHES "fp16")
+            #message("fp16 instance found!")
+            set(add_inst 1)
+        endif()
+        if(("${cmake_instance}" MATCHES "fp32" OR "${cmake_instance}" MATCHES "_f32") AND DTYPES MATCHES "fp32")
+            #message("fp32 instance found!")
+            set(add_inst 1)
+        endif()
+        if(("${cmake_instance}" MATCHES "fp64" OR "${cmake_instance}" MATCHES "_f64") AND DTYPES MATCHES "fp64")
+            #message("fp64 instance found!")
+            set(add_inst 1)
+        endif()
+        if(("${cmake_instance}" MATCHES "bf16" OR "${cmake_instance}" MATCHES "_b16") AND DTYPES MATCHES "bf16")
+            #message("bf16 instance found!")
+            set(add_inst 1)
+        endif()
+        if(("${cmake_instance}" MATCHES "int8" OR "${cmake_instance}" MATCHES "_i8") AND DTYPES MATCHES "int8")
+            #message("int8 instance found!")
+            set(add_inst 1)
+        endif()
+        if(NOT "${cmake_instance}" MATCHES "DTYPES")
+            #message("instance should be built for all types!")
+            set(add_inst 1)
+        endif()
+        if(add_inst EQUAL 1 OR NOT DEFINED DTYPES)
+            list(APPEND CK_DEVICE_INSTANCES device_${subdir_path}_instance)
+        endif()
+    ENDIF()
+    ENDFOREACH()
 
-if(NOT DEFINED INSTANCES_ONLY)
- if(NOT DEFINED PROFILER_ONLY)
-   rocm_package_setup_component(tests
-        LIBRARY_NAME composablekernel
-        PACKAGE_NAME tests # Prevent -static suffix on package name
-   )
+    add_custom_target(instances DEPENDS utility;${CK_DEVICE_INSTANCES}  SOURCES ${INSTANCE_FILES})
+    add_subdirectory(library)
 
-   rocm_package_setup_component(examples
-        LIBRARY_NAME composablekernel
-        PACKAGE_NAME examples
-   )
-   add_subdirectory(example)
+    if(NOT DEFINED INSTANCES_ONLY)
+    if(NOT DEFINED PROFILER_ONLY)
+    rocm_package_setup_component(tests
+            LIBRARY_NAME composablekernel
+            PACKAGE_NAME tests # Prevent -static suffix on package name
+    )
+
+    rocm_package_setup_component(examples
+            LIBRARY_NAME composablekernel
+            PACKAGE_NAME examples
+    )
+    add_subdirectory(example)
    if(BUILD_TESTING)
-     add_subdirectory(test)
+       add_subdirectory(test)
    endif()
 
-   rocm_package_setup_component(profiler
-        LIBRARY_NAME composablekernel
-        PACKAGE_NAME ckprofiler
-   )
-   add_subdirectory(profiler)
-  else()
-    #When building PROFILER_ONLY, label the package with GPU_ARCH
     rocm_package_setup_component(profiler
-       LIBRARY_NAME composablekernel
-       PACKAGE_NAME ckprofiler_${GPU_ARCH}
+            LIBRARY_NAME composablekernel
+        PACKAGE_NAME ckProfiler
     )
     add_subdirectory(profiler)
-  endif()
+    else()
+        #When building PROFILER_ONLY, label the package with GPU_ARCH
+        rocm_package_setup_component(profiler
+        LIBRARY_NAME composablekernel
+       PACKAGE_NAME ckProfiler_${GPU_ARCH}
+        )
+        add_subdirectory(profiler)
+    endif()
+    endif()
+else()
+    rocm_package_setup_component(jit_library
+        LIBRARY_NAME composablekernel
+        PACKAGE_NAME jit_library
+    )
+    add_subdirectory(library)
+    add_subdirectory(test)
 endif()
 
 #Create an interface target for the include only files and call it "composablekernels"

@@ -15,7 +15,7 @@ template <typename Y,
           std::enable_if_t<!(std::is_const_v<Y> || std::is_const_v<X>), bool> = false>
 __host__ __device__ constexpr Y type_convert(X x)
 {
-    static_assert(!std::is_reference_v<Y> && !std::is_reference_v<X>);
+    static_assert(!ck::is_reference_v<Y> && !ck::is_reference_v<X>);
 
     return static_cast<Y>(x);
 }
@@ -356,7 +356,7 @@ template <>
 inline __host__ __device__ bf8_t f8_convert_sr<bf8_t, float>(float x)
 {
     constexpr int seed = 42;
-    uint32_t rng       = prand_generator<float, seed>(reinterpret_cast<uintptr_t>(&x), x);
+    uint32_t rng       = prand_generator<float, seed>(reinterpret_cast<size_t>(&x), x);
 #if defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__)
     union
     {
@@ -392,7 +392,7 @@ inline __host__ __device__ bf8_t f8_convert_sr<bf8_t, half_t>(half_t x)
     constexpr f8_rounding_mode rm    = f8_rounding_mode::stochastic;
     constexpr int seed               = 42;
     // as thread id is not available on host, use 0 for prn generation
-    uint32_t rng = prand_generator<half_t, seed>(reinterpret_cast<uintptr_t>(&x), x);
+    uint32_t rng = prand_generator<half_t, seed>(reinterpret_cast<size_t>(&x), x);
     return utils::
         cast_to_f8<half_t, bf8_t, negative_zero_nan, clip, (rm == f8_rounding_mode::stochastic)>(
             x, rng);
