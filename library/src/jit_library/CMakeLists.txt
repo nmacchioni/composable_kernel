@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2018-2022, Advanced Micro Devices, Inc. All rights reserved.
+
 include(Embed)
 file(GLOB_RECURSE KERNEL_FILES CONFIGURE_DEPENDS
     ${PROJECT_SOURCE_DIR}/include/ck/*.hpp)
@@ -5,8 +8,10 @@ message(STATUS "KERNEL_FILES: ${KERNEL_FILES}")
 message(STATUS "RELATIVE: ${PROJECT_SOURCE_DIR}/include")
 add_embed_library(ck_headers ${KERNEL_FILES} RELATIVE ${PROJECT_SOURCE_DIR}/include)
 
+find_package(Python 3.8 REQUIRED COMPONENTS Interpreter)
+
 execute_process(
-    COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/util/make_instance_strings.py
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/util/make_instance_strings.py
         ${PROJECT_SOURCE_DIR}/library/src/tensor_operation_instance/gpu
         ${CMAKE_CURRENT_BINARY_DIR}/solution_instances
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../tensor_operation_instance/gpu/
@@ -44,5 +49,3 @@ rocm_install(
     NAMESPACE composable_kernel::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/composable_kernel
 )
-
-
