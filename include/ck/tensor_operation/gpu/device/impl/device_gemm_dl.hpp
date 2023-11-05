@@ -80,6 +80,7 @@ struct DeviceGemmDl : public DeviceGemm<ALayout,
     using GridwiseGemm =
         GridwiseGemmDl_km_kn_mn_v1r3<BlockSize,
                                      ADataType,
+                                     BDataType,
                                      AccDataType,
                                      CDataType,
                                      InMemoryDataOperationEnum::Set,
@@ -184,10 +185,17 @@ struct DeviceGemmDl : public DeviceGemm<ALayout,
 
             float ave_time = 0;
 
+            using ComputeType = ADataType;
+
             if(has_main_k_block_loop && has_double_tail_k_block_loop)
             {
-                const auto kernel =
-                    kernel_gemm_dl_v1r3<GridwiseGemm, ADataType, CDataType, true, true>;
+                const auto kernel = kernel_gemm_dl_v1r3<GridwiseGemm,
+                                                        ADataType,
+                                                        BDataType,
+                                                        ComputeType,
+                                                        CDataType,
+                                                        true,
+                                                        true>;
 
                 ave_time = launch_and_time_kernel(stream_config,
                                                   kernel,
@@ -206,8 +214,13 @@ struct DeviceGemmDl : public DeviceGemm<ALayout,
             }
             else if(has_main_k_block_loop && !has_double_tail_k_block_loop)
             {
-                const auto kernel =
-                    kernel_gemm_dl_v1r3<GridwiseGemm, ADataType, CDataType, true, false>;
+                const auto kernel = kernel_gemm_dl_v1r3<GridwiseGemm,
+                                                        ADataType,
+                                                        BDataType,
+                                                        ComputeType,
+                                                        CDataType,
+                                                        true,
+                                                        false>;
 
                 ave_time = launch_and_time_kernel(stream_config,
                                                   kernel,
@@ -226,8 +239,13 @@ struct DeviceGemmDl : public DeviceGemm<ALayout,
             }
             else if(!has_main_k_block_loop && has_double_tail_k_block_loop)
             {
-                const auto kernel =
-                    kernel_gemm_dl_v1r3<GridwiseGemm, ADataType, CDataType, false, true>;
+                const auto kernel = kernel_gemm_dl_v1r3<GridwiseGemm,
+                                                        ADataType,
+                                                        BDataType,
+                                                        ComputeType,
+                                                        CDataType,
+                                                        false,
+                                                        true>;
 
                 ave_time = launch_and_time_kernel(stream_config,
                                                   kernel,
@@ -246,8 +264,13 @@ struct DeviceGemmDl : public DeviceGemm<ALayout,
             }
             else
             {
-                const auto kernel =
-                    kernel_gemm_dl_v1r3<GridwiseGemm, ADataType, CDataType, false, false>;
+                const auto kernel = kernel_gemm_dl_v1r3<GridwiseGemm,
+                                                        ADataType,
+                                                        BDataType,
+                                                        ComputeType,
+                                                        CDataType,
+                                                        false,
+                                                        false>;
 
                 ave_time = launch_and_time_kernel(stream_config,
                                                   kernel,
