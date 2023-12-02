@@ -66,7 +66,7 @@ bool run_splitK_gemm(const ProblemSize& problem_size, const ExecutionConfig& con
         b_k_n.GenerateTensorValue(GeneratorTensor_3<BDataType>{-0.5, 0.5});
         break;
     default:
-        a_m_k.GenerateTensorValue(GeneratorTensor_Sequential<0>{});
+        a_m_k.GenerateTensorValue(GeneratorTensor_Sequential<1>{});
         b_k_n.GenerateTensorValue(GeneratorTensor_Sequential<1>{});
     }
 

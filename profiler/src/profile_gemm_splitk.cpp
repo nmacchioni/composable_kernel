@@ -187,6 +187,7 @@ int profile_gemm_splitk(int argc, char* argv[])
     {
         return profile(F16{}, F8{}, F32{}, F16{}, Col{}, Col{}, Row{}, F16{});
     }
+#if 0
     else if(data_type == GemmDataType::F16_F16_F16_F8 && layout == GemmMatrixLayout::MK_KN_MN)
     {
         return profile(F16{}, F16{}, F32{}, F16{}, Row{}, Row{}, Row{}, F8{});
@@ -203,6 +204,7 @@ int profile_gemm_splitk(int argc, char* argv[])
     {
         return profile(F16{}, F16{}, F32{}, F16{}, Col{}, Col{}, Row{}, F8{});
     }
+#endif
 #endif
     else
     {

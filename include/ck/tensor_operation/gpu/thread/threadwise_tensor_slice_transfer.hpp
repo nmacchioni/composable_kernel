@@ -1160,6 +1160,8 @@ struct ThreadwiseTensorSliceTransfer_v4
                     src_tmp_vector.template AsType<SrcData>()(i) = src_buf[Number<src_offset>{}];
                 });
             }
+
+#if 0
             // copy data from src_tmp_vector to dst_tmp_vector (data cast data from SrcData to
             // DstData)
             vector_type_maker_t<DstData, SrcScalarPerVector> dst_tmp_vector;
@@ -1169,13 +1171,15 @@ struct ThreadwiseTensorSliceTransfer_v4
                 dst_tmp_vector.template AsType<DstData>()(i) =
                     type_convert<DstData>(src_tmp_vector.template AsType<SrcData>()[i]);
             });
+#endif
 
             // copy data from dst_tmp_vector into dst_buf
             static_for<0, SrcScalarPerVector, 1>{}([&](auto i) {
                 constexpr index_t dst_offset = dst_desc.CalculateOffset(
                     dst_origin_idx + data_to_origin_disp_idx + i * src_scalar_step_in_vector);
 
-                dst_buf(Number<dst_offset>{}) = dst_tmp_vector.template AsType<DstData>()[i];
+                dst_buf(Number<dst_offset>{}) =
+                    type_convert<DstData>(src_tmp_vector.template AsType<SrcData>()[i]);
             });
         });
     }

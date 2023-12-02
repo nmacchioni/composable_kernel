@@ -21,6 +21,7 @@
 template <ck::index_t... Is>
 using S = ck::Sequence<Is...>;
 
+using F8  = ck::f8_t;
 using F16 = ck::half_t;
 using F32 = float;
 
@@ -30,7 +31,7 @@ using Col = ck::tensor_layout::gemm::ColumnMajor;
 using PassThrough = ck::tensor_operation::element_wise::PassThrough;
 
 using ADataType   = F16;
-using BDataType   = F16;
+using BDataType   = F8;
 using AccDataType = F32;
 using CDataType   = F16;
 

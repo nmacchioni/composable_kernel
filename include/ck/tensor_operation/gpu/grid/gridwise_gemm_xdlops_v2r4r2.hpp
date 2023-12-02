@@ -825,7 +825,8 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2
             MRepeat,
             NRepeat,
             K1,
-            LoopSched>();
+            LoopSched,
+            ComputeType>();
 
         auto c_thread_buf = blockwise_gemm.GetCThreadBuffer();
 
