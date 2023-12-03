@@ -366,10 +366,12 @@ inline __host__ __device__ half_t type_convert<half_t, f8_t>(f8_t x)
 #if defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__)
     // use native conversion to float and convert to fp16
     // return type_convert<half_t>(type_convert<float>(x));
-    return static_cast<half_t>(x);
+    // return static_cast<half_t>(x);
+    return static_cast<half_t>(bit_cast<int8_t>(x));
 #else
-    constexpr bool negative_zero_nan = true;
-    return utils::cast_from_f8<f8_t, half_t, negative_zero_nan>(x);
+    // constexpr bool negative_zero_nan = true;
+    // return utils::cast_from_f8<f8_t, half_t, negative_zero_nan>(x);
+    return static_cast<half_t>(bit_cast<int8_t>(x));
 #endif
 }
 

@@ -122,96 +122,91 @@ int profile_gemm_splitk(int argc, char* argv[])
         return pass ? 0 : 1;
     };
 
+#if 0
     if(data_type == GemmDataType::F32_F32_F32 && layout == GemmMatrixLayout::MK_KN_MN)
     {
         return profile(F32{}, F32{}, F32{}, F32{}, Row{}, Row{}, Row{}, F32{});
     }
-    else if(data_type == GemmDataType::F32_F32_F32 && layout == GemmMatrixLayout::MK_NK_MN)
+    if(data_type == GemmDataType::F32_F32_F32 && layout == GemmMatrixLayout::MK_NK_MN)
     {
         return profile(F32{}, F32{}, F32{}, F32{}, Row{}, Col{}, Row{}, F32{});
     }
-    else if(data_type == GemmDataType::F32_F32_F32 && layout == GemmMatrixLayout::KM_KN_MN)
+    if(data_type == GemmDataType::F32_F32_F32 && layout == GemmMatrixLayout::KM_KN_MN)
     {
         return profile(F32{}, F32{}, F32{}, F32{}, Col{}, Row{}, Row{}, F32{});
     }
-    else if(data_type == GemmDataType::F32_F32_F32 && layout == GemmMatrixLayout::KM_NK_MN)
+    if(data_type == GemmDataType::F32_F32_F32 && layout == GemmMatrixLayout::KM_NK_MN)
     {
         return profile(F32{}, F32{}, F32{}, F32{}, Col{}, Col{}, Row{}, F32{});
     }
-    else if(data_type == GemmDataType::F16_F16_F16 && layout == GemmMatrixLayout::MK_KN_MN)
+#endif
+    if(data_type == GemmDataType::F16_F16_F16 && layout == GemmMatrixLayout::MK_KN_MN)
     {
         return profile(F16{}, F16{}, F32{}, F16{}, Row{}, Row{}, Row{}, F16{});
     }
-    else if(data_type == GemmDataType::F16_F16_F16 && layout == GemmMatrixLayout::MK_NK_MN)
+    if(data_type == GemmDataType::F16_F16_F16 && layout == GemmMatrixLayout::MK_NK_MN)
     {
         return profile(F16{}, F16{}, F32{}, F16{}, Row{}, Col{}, Row{}, F16{});
     }
-    else if(data_type == GemmDataType::F16_F16_F16 && layout == GemmMatrixLayout::KM_KN_MN)
+    if(data_type == GemmDataType::F16_F16_F16 && layout == GemmMatrixLayout::KM_KN_MN)
     {
         return profile(F16{}, F16{}, F32{}, F16{}, Col{}, Row{}, Row{}, F16{});
     }
-    else if(data_type == GemmDataType::F16_F16_F16 && layout == GemmMatrixLayout::KM_NK_MN)
+    if(data_type == GemmDataType::F16_F16_F16 && layout == GemmMatrixLayout::KM_NK_MN)
     {
         return profile(F16{}, F16{}, F32{}, F16{}, Col{}, Col{}, Row{}, F16{});
     }
 #if defined CK_ENABLE_FP8
-    else if(data_type == GemmDataType::F8_F16_F16 && layout == GemmMatrixLayout::MK_KN_MN)
-    {
-        return profile(F8{}, F16{}, F32{}, F16{}, Row{}, Row{}, Row{}, F16{});
-    }
-    else if(data_type == GemmDataType::F8_F16_F16 && layout == GemmMatrixLayout::MK_NK_MN)
-    {
-        return profile(F8{}, F16{}, F32{}, F16{}, Row{}, Col{}, Row{}, F16{});
-    }
-    else if(data_type == GemmDataType::F8_F16_F16 && layout == GemmMatrixLayout::KM_KN_MN)
-    {
-        return profile(F8{}, F16{}, F32{}, F16{}, Col{}, Row{}, Row{}, F16{});
-    }
-    else if(data_type == GemmDataType::F8_F16_F16 && layout == GemmMatrixLayout::KM_NK_MN)
-    {
-        return profile(F8{}, F16{}, F32{}, F16{}, Col{}, Col{}, Row{}, F16{});
-    }
-    else if(data_type == GemmDataType::F16_F8_F16 && layout == GemmMatrixLayout::MK_KN_MN)
+    // if(data_type == GemmDataType::F8_F16_F16 && layout == GemmMatrixLayout::MK_KN_MN)
+    //{
+    // return profile(F8{}, F16{}, F32{}, F16{}, Row{}, Row{}, Row{}, F16{});
+    //}
+    // if(data_type == GemmDataType::F8_F16_F16 && layout == GemmMatrixLayout::MK_NK_MN)
+    //{
+    // return profile(F8{}, F16{}, F32{}, F16{}, Row{}, Col{}, Row{}, F16{});
+    //}
+    // if(data_type == GemmDataType::F8_F16_F16 && layout == GemmMatrixLayout::KM_KN_MN)
+    //{
+    // return profile(F8{}, F16{}, F32{}, F16{}, Col{}, Row{}, Row{}, F16{});
+    //}
+    // if(data_type == GemmDataType::F8_F16_F16 && layout == GemmMatrixLayout::KM_NK_MN)
+    //{
+    // return profile(F8{}, F16{}, F32{}, F16{}, Col{}, Col{}, Row{}, F16{});
+    //}
+    if(data_type == GemmDataType::F16_F8_F16 && layout == GemmMatrixLayout::MK_KN_MN)
     {
         return profile(F16{}, F8{}, F32{}, F16{}, Row{}, Row{}, Row{}, F16{});
     }
-    else if(data_type == GemmDataType::F16_F8_F16 && layout == GemmMatrixLayout::MK_NK_MN)
+    if(data_type == GemmDataType::F16_F8_F16 && layout == GemmMatrixLayout::MK_NK_MN)
     {
         return profile(F16{}, F8{}, F32{}, F16{}, Row{}, Col{}, Row{}, F16{});
     }
-    else if(data_type == GemmDataType::F16_F8_F16 && layout == GemmMatrixLayout::KM_KN_MN)
+    if(data_type == GemmDataType::F16_F8_F16 && layout == GemmMatrixLayout::KM_KN_MN)
     {
         return profile(F16{}, F8{}, F32{}, F16{}, Col{}, Row{}, Row{}, F16{});
     }
-    else if(data_type == GemmDataType::F16_F8_F16 && layout == GemmMatrixLayout::KM_NK_MN)
+    if(data_type == GemmDataType::F16_F8_F16 && layout == GemmMatrixLayout::KM_NK_MN)
     {
         return profile(F16{}, F8{}, F32{}, F16{}, Col{}, Col{}, Row{}, F16{});
     }
-#if 0
-    else if(data_type == GemmDataType::F16_F16_F16_F8 && layout == GemmMatrixLayout::MK_KN_MN)
-    {
-        return profile(F16{}, F16{}, F32{}, F16{}, Row{}, Row{}, Row{}, F8{});
-    }
-    else if(data_type == GemmDataType::F16_F16_F16_F8 && layout == GemmMatrixLayout::MK_NK_MN)
-    {
-        return profile(F16{}, F16{}, F32{}, F16{}, Row{}, Col{}, Row{}, F8{});
-    }
-    else if(data_type == GemmDataType::F16_F16_F16_F8 && layout == GemmMatrixLayout::KM_KN_MN)
-    {
-        return profile(F16{}, F16{}, F32{}, F16{}, Col{}, Row{}, Row{}, F8{});
-    }
-    else if(data_type == GemmDataType::F16_F16_F16_F8 && layout == GemmMatrixLayout::KM_NK_MN)
-    {
-        return profile(F16{}, F16{}, F32{}, F16{}, Col{}, Col{}, Row{}, F8{});
-    }
+    // if(data_type == GemmDataType::F16_F16_F16_F8 && layout == GemmMatrixLayout::MK_KN_MN)
+    //{
+    // return profile(F16{}, F16{}, F32{}, F16{}, Row{}, Row{}, Row{}, F8{});
+    //}
+    // if(data_type == GemmDataType::F16_F16_F16_F8 && layout == GemmMatrixLayout::MK_NK_MN)
+    //{
+    // return profile(F16{}, F16{}, F32{}, F16{}, Row{}, Col{}, Row{}, F8{});
+    //}
+    // if(data_type == GemmDataType::F16_F16_F16_F8 && layout == GemmMatrixLayout::KM_KN_MN)
+    //{
+    // return profile(F16{}, F16{}, F32{}, F16{}, Col{}, Row{}, Row{}, F8{});
+    //}
+    // if(data_type == GemmDataType::F16_F16_F16_F8 && layout == GemmMatrixLayout::KM_NK_MN)
+    //{
+    // return profile(F16{}, F16{}, F32{}, F16{}, Col{}, Col{}, Row{}, F8{});
+    //}
 #endif
-#endif
-    else
-    {
-        std::cout << "this data_type & layout is not implemented" << std::endl;
-
-        return 1;
-    }
+    return 0;
 }
 
 REGISTER_PROFILER_OPERATION(OP_NAME, OP_DESC, profile_gemm_splitk);
