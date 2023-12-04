@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <iostream>
 #include <typeinfo>
+#include <unistd.h>
 
 #include "ck/ck.hpp"
 #include "ck/tensor_operation/gpu/device/tensor_layout.hpp"
@@ -134,11 +135,10 @@ bool profile_gemm_splitk_impl(int do_verification,
         ref_invoker.Run(ref_argument);
     }
 
-    std::string best_op_name;
-    float best_ave_time   = 0;
-    float best_tflops     = 0;
-    float best_gb_per_sec = 0;
-    float best_kbatch     = 0;
+    float best_tflops    = 0;
+    int best_instance_id = 0;
+    float best_kbatch    = 0;
+    int instance_id      = 0;
 
     // profile device GEMM instances
     for(auto& op_ptr : op_ptrs)
@@ -200,8 +200,8 @@ bool profile_gemm_splitk_impl(int do_verification,
 
                 std::string op_name = op_ptr->GetTypeString();
 
-                float ave_time =
-                    invoker_ptr->Run(argument_ptr.get(), StreamConfig{nullptr, time_kernel});
+                float ave_time = invoker_ptr->Run(argument_ptr.get(),
+                                                  StreamConfig{nullptr, time_kernel, 0, 5, 20});
 
                 std::size_t flop = std::size_t(2) * M * N * K;
 
@@ -237,11 +237,9 @@ bool profile_gemm_splitk_impl(int do_verification,
 
                 if(tflops > best_tflops)
                 {
-                    best_op_name    = op_name;
-                    best_tflops     = tflops;
-                    best_ave_time   = ave_time;
-                    best_gb_per_sec = gb_per_sec;
-                    best_kbatch     = kbatch_curr;
+                    best_tflops      = tflops;
+                    best_kbatch      = kbatch_curr;
+                    best_instance_id = instance_id;
                 }
             }
             else
@@ -250,47 +248,111 @@ bool profile_gemm_splitk_impl(int do_verification,
                           << std::endl;
             }
         }
+
+        instance_id++;
     }
 
-    if constexpr(is_same<CDataType, float>::value)
-    {
-        std::cout << "Best Perf for datatype = f32";
-    }
-    else if constexpr(is_same<CDataType, half_t>::value)
-    {
-        std::cout << "Best Perf for datatype = f16";
-    }
-    else if constexpr(is_same<CDataType, bhalf_t>::value)
-    {
-        std::cout << "Best Perf for datatype = bf16";
-    }
-    else if constexpr(is_same<CDataType, int8_t>::value)
-    {
-        std::cout << "Best Perf for datatype = int8";
-    }
+    sleep(2);
 
-    if constexpr(is_same<ALayout, tensor_layout::gemm::RowMajor>::value)
     {
-        std::cout << " ALayout =  RowMajor";
-    }
-    else if constexpr(is_same<ALayout, tensor_layout::gemm::ColumnMajor>::value)
-    {
-        std::cout << " ALayout =  ColumnMajor";
-    }
+        auto& op_ptr = op_ptrs[best_instance_id];
 
-    if constexpr(is_same<BLayout, tensor_layout::gemm::RowMajor>::value)
-    {
-        std::cout << " BLayout =  RowMajor";
-    }
-    else if constexpr(is_same<BLayout, tensor_layout::gemm::ColumnMajor>::value)
-    {
-        std::cout << " BLayout =  ColumnMajor";
-    }
+        auto argument_ptr =
+            op_ptr->MakeArgumentPointer(static_cast<ADataType*>(a_device_buf.GetDeviceBuffer()),
+                                        static_cast<BDataType*>(b_device_buf.GetDeviceBuffer()),
+                                        static_cast<CDataType*>(c_device_buf.GetDeviceBuffer()),
+                                        M,
+                                        N,
+                                        K,
+                                        StrideA,
+                                        StrideB,
+                                        StrideC,
+                                        a_element_op,
+                                        b_element_op,
+                                        c_element_op,
+                                        best_kbatch);
 
-    std::cout << " M = " << M << " N = " << N << " K = " << K << " StrideA = " << StrideA
-              << " StrideB = " << StrideB << " StrideC = " << StrideC << " KBatch = " << best_kbatch
-              << " : " << best_ave_time << " ms, " << best_tflops << " TFlops, " << best_gb_per_sec
-              << " GB/s, " << best_op_name << std::endl;
+        auto invoker_ptr = op_ptr->MakeInvokerPointer();
+
+        if(op_ptr->IsSupportedArgument(argument_ptr.get()))
+        {
+            // re-init C to zero before profiling next kernel
+            c_device_buf.SetZero();
+
+            invoker_ptr->Run(argument_ptr.get(), StreamConfig{nullptr, false});
+
+            if(do_verification)
+            {
+                c_device_buf.FromDevice(c_m_n_device_result.mData.data());
+
+                pass = pass & ck::utils::check_err(c_m_n_device_result, c_m_n_host_result);
+
+                if(do_log)
+                {
+                    LogRangeAsType<float>(std::cout << "a : ", a_m_k.mData, ",") << std::endl;
+                    LogRangeAsType<float>(std::cout << "b: ", b_k_n.mData, ",") << std::endl;
+                    LogRangeAsType<float>(std::cout << "c_host  : ", c_m_n_host_result.mData, ",")
+                        << std::endl;
+                    LogRangeAsType<float>(std::cout << "c_device: ", c_m_n_device_result.mData, ",")
+                        << std::endl;
+                }
+            }
+
+            std::string op_name = op_ptr->GetTypeString();
+
+            float ave_time =
+                invoker_ptr->Run(argument_ptr.get(), StreamConfig{nullptr, time_kernel, 0, 10, 50});
+
+            std::size_t flop = std::size_t(2) * M * N * K;
+
+            std::size_t num_btype =
+                sizeof(ADataType) * M * K + sizeof(BDataType) * K * N + sizeof(CDataType) * M * N;
+
+            float tflops = static_cast<float>(flop) / 1.E9 / ave_time;
+
+            float gb_per_sec = num_btype / 1.E6 / ave_time;
+
+            if constexpr(is_same<CDataType, float>::value)
+            {
+                std::cout << "Best Perf for datatype = f32";
+            }
+            else if constexpr(is_same<CDataType, half_t>::value)
+            {
+                std::cout << "Best Perf for datatype = f16";
+            }
+            else if constexpr(is_same<CDataType, bhalf_t>::value)
+            {
+                std::cout << "Best Perf for datatype = bf16";
+            }
+            else if constexpr(is_same<CDataType, int8_t>::value)
+            {
+                std::cout << "Best Perf for datatype = int8";
+            }
+
+            if constexpr(is_same<ALayout, tensor_layout::gemm::RowMajor>::value)
+            {
+                std::cout << " ALayout =  RowMajor";
+            }
+            else if constexpr(is_same<ALayout, tensor_layout::gemm::ColumnMajor>::value)
+            {
+                std::cout << " ALayout =  ColumnMajor";
+            }
+
+            if constexpr(is_same<BLayout, tensor_layout::gemm::RowMajor>::value)
+            {
+                std::cout << " BLayout =  RowMajor";
+            }
+            else if constexpr(is_same<BLayout, tensor_layout::gemm::ColumnMajor>::value)
+            {
+                std::cout << " BLayout =  ColumnMajor";
+            }
+
+            std::cout << " M = " << M << " N = " << N << " K = " << K << " StrideA = " << StrideA
+                      << " StrideB = " << StrideB << " StrideC = " << StrideC
+                      << " KBatch = " << best_kbatch << " : " << ave_time << " ms, " << tflops
+                      << " TFlops, " << gb_per_sec << " GB/s, " << op_name << std::endl;
+        }
+    }
 
     return pass;
 }

@@ -30,7 +30,7 @@ using Col = ck::tensor_layout::gemm::ColumnMajor;
 
 using PassThrough = ck::tensor_operation::element_wise::PassThrough;
 
-using ADataType   = F8;
+using ADataType   = F16;
 using BDataType   = F8;
 using AccDataType = F32;
 using CDataType   = F16;
