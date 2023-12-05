@@ -64,6 +64,9 @@ _toc.yml
 docBin/
 _doxygen/
 
+# Python virtual environment
+.venv/
+
 # pycache
 __pycache__/
 

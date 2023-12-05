@@ -9,15 +9,11 @@ get_property(_GENERATOR_IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFI
 # This has to be initialized before the project() command appears
 # Set the default of CMAKE_BUILD_TYPE to be release, unless user specifies with -D.  MSVC_IDE does not use CMAKE_BUILD_TYPE
 if(_GENERATOR_IS_MULTI_CONFIG)
-    if (NOT CMAKE_CONFIGURATION_TYPES)
-        set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo;MinSizeRel" CACHE STRING
-                "Available build types (configurations) on multi-config generators")
-    endif()
+    set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo;MinSizeRel" CACHE STRING
+            "Available build types (configurations) on multi-config generators")
 else()
-    if(NOT CMAKE_BUILD_TYPE)
-        set(CMAKE_BUILD_TYPE Release CACHE STRING
-                "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel.")
-    endif()
+    set(CMAKE_BUILD_TYPE Release CACHE STRING
+            "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel.")
 endif()
 
 # Default installation path
@@ -81,7 +77,7 @@ if(INSTANCES_ONLY)
     set(CK_ENABLE_INSTANCES_ONLY "ON")
 endif()
 
-include(GetOpt)
+include(getopt)
 
 # CK config file to record supported datatypes, etc.
 configure_file(include/ck/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/ck/config.h)
@@ -145,6 +141,27 @@ if(GPU_TARGETS)
 else()
     message("Building CK for the following targets: ${AMDGPU_TARGETS}")
 endif()
+
+option(USE_BITINT_EXTENSION_INT4, "Whether to enable clang's BitInt extension to provide int4 data type." OFF)
+option(USE_OPT_NAVI3X, "Whether to enable LDS cumode and Wavefront32 mode for NAVI3X silicons." OFF)
+
+if(USE_BITINT_EXTENSION_INT4)
+    add_compile_definitions(CK_EXPERIMENTAL_BIT_INT_EXTENSION_INT4)
+    add_compile_options(-Wno-bit-int-extension)
+    message("CK compiled with USE_BITINT_EXTENSION_INT4 set to ${USE_BITINT_EXTENSION_INT4}")
+endif()
+
+if(USE_OPT_NAVI3X)
+    add_compile_options(-mcumode)
+    add_compile_options(-mno-wavefrontsize64)
+    message("CK compiled with USE_OPT_NAVI3X set to ${USE_OPT_NAVI3X}")
+endif()
+
+## Threads
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+link_libraries(Threads::Threads)
+
 ## C++
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -179,23 +196,21 @@ if (NOT CK_BUILD_JIT_LIB)
     endif()
 
     ## Threads
-    if(NOT WIN32)
-        set(THREADS_PREFER_PTHREAD_FLAG ON)
-    endif()
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
     link_libraries(Threads::Threads)
 
     ## OpenMP
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-	    # workaround issue hipcc in rocm3.5 cannot find openmp
-    	set(OpenMP_CXX "${CMAKE_CXX_COMPILER}")
-    	set(OpenMP_CXX_FLAGS "-fopenmp=libomp -Wno-unused-command-line-argument")
-    	set(OpenMP_CXX_LIB_NAMES "libomp" "libgomp" "libiomp5")
-    	set(OpenMP_libomp_LIBRARY ${OpenMP_CXX_LIB_NAMES})
-    	set(OpenMP_libgomp_LIBRARY ${OpenMP_CXX_LIB_NAMES})
-    	set(OpenMP_libiomp5_LIBRARY ${OpenMP_CXX_LIB_NAMES})
+        # workaround issue hipcc in rocm3.5 cannot find openmp
+        set(OpenMP_CXX "${CMAKE_CXX_COMPILER}")
+        set(OpenMP_CXX_FLAGS "-fopenmp=libomp -Wno-unused-command-line-argument")
+        set(OpenMP_CXX_LIB_NAMES "libomp" "libgomp" "libiomp5")
+        set(OpenMP_libomp_LIBRARY ${OpenMP_CXX_LIB_NAMES})
+        set(OpenMP_libgomp_LIBRARY ${OpenMP_CXX_LIB_NAMES})
+        set(OpenMP_libiomp5_LIBRARY ${OpenMP_CXX_LIB_NAMES})
     else()
-	    find_package(OpenMP REQUIRED)
+        find_package(OpenMP REQUIRED)
     endif()
 
     message("OpenMP_CXX_LIB_NAMES: ${OpenMP_CXX_LIB_NAMES}")
@@ -389,10 +404,9 @@ add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -C ${
 if (NOT CK_BUILD_JIT_LIB)
     SET(BUILD_DEV ON CACHE BOOL "BUILD_DEV")
     if(BUILD_DEV)
-        add_compile_options(-Werror -Weverything)
+        add_compile_options(-Werror)
+        add_compile_options(-Weverything)
     endif()
-    #add flags to reduce the size of binaries
-    add_compile_options(-Oz -flto=thin)
     message("CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 
     file(GLOB_RECURSE INSTANCE_FILES "${PROJECT_SOURCE_DIR}/*/device_*_instance.cpp")
